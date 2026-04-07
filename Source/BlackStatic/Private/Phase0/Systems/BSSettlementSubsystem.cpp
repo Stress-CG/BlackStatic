@@ -75,6 +75,28 @@ void UBSSettlementSubsystem::DepositInventory(UBSInventoryComponent* Inventory)
 	BroadcastAndSave();
 }
 
+bool UBSSettlementSubsystem::WithdrawAllStashToInventory(UBSInventoryComponent* Inventory)
+{
+	if (!Inventory || CurrentState.PersistentStash.IsEmpty())
+	{
+		return false;
+	}
+
+	for (const FBSItemStack& Stack : CurrentState.PersistentStash)
+	{
+		Inventory->AddItemStack(Stack);
+	}
+
+	CurrentState.PersistentStash.Reset();
+	BroadcastAndSave();
+	return true;
+}
+
+bool UBSSettlementSubsystem::HasPersistentStashItems() const
+{
+	return CurrentState.PersistentStash.Num() > 0;
+}
+
 void UBSSettlementSubsystem::ApplyTaskReward(UBSTaskDefinition* TaskDefinition)
 {
 	if (!TaskDefinition)

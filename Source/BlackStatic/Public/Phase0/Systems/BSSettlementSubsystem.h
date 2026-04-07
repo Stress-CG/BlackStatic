@@ -45,6 +45,12 @@ public:
 	void DepositInventory(UBSInventoryComponent* Inventory);
 
 	UFUNCTION(BlueprintCallable, Category = "Settlement")
+	bool WithdrawAllStashToInventory(UBSInventoryComponent* Inventory);
+
+	UFUNCTION(BlueprintPure, Category = "Settlement")
+	bool HasPersistentStashItems() const;
+
+	UFUNCTION(BlueprintCallable, Category = "Settlement")
 	void ApplyTaskReward(UBSTaskDefinition* TaskDefinition);
 
 	UFUNCTION(BlueprintCallable, Category = "Settlement")

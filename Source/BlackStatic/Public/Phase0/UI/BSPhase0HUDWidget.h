@@ -11,6 +11,7 @@ class UImage;
 class UProgressBar;
 class UScrollBox;
 class UTextBlock;
+class UUserWidget;
 class UVerticalBox;
 
 UCLASS()
@@ -120,6 +121,12 @@ private:
 	TObjectPtr<UBorder> BackpackPanel;
 
 	UPROPERTY(Transient)
+	TObjectPtr<UCanvasPanel> BackpackCanvas;
+
+	UPROPERTY(Transient)
+	TObjectPtr<UBorder> BackpackDetailsPanel;
+
+	UPROPERTY(Transient)
 	TObjectPtr<UImage> BackpackImage;
 
 	UPROPERTY(Transient)
@@ -133,6 +140,9 @@ private:
 
 	UPROPERTY(Transient)
 	TObjectPtr<UScrollBox> BackpackItemsScrollBox;
+
+	UPROPERTY(Transient)
+	TObjectPtr<UUserWidget> LegacyBackpackShellWidget;
 
 	UPROPERTY(Transient)
 	FText ActiveNotification;

@@ -12,6 +12,7 @@
 #include "Misc/Parse.h"
 #include "Misc/Paths.h"
 #include "NavMesh/NavMeshBoundsVolume.h"
+#include "NavigationSystem.h"
 #include "Phase0/Actors/BSExtractionPoint.h"
 #include "Phase0/Actors/BSInfectedCharacter.h"
 #include "Phase0/Actors/BSObjectivePickup.h"
@@ -312,6 +313,30 @@ namespace
 		return nullptr;
 	}
 
+	bool RebuildNavigationData(UWorld* World, ANavMeshBoundsVolume* NavBounds, const FString& TargetMapPath)
+	{
+		if (!World)
+		{
+			return false;
+		}
+
+		UNavigationSystemV1* NavigationSystem = FNavigationSystem::GetCurrent<UNavigationSystemV1>(World);
+		if (NavigationSystem && NavBounds)
+		{
+			NavigationSystem->OnNavigationBoundsUpdated(NavBounds);
+			NavigationSystem->Build();
+		}
+
+		NavigationSystem = FNavigationSystem::GetCurrent<UNavigationSystemV1>(World);
+		if (!NavigationSystem || !NavigationSystem->GetDefaultNavDataInstance(FNavigationSystem::Create))
+		{
+			UE_LOG(LogTemp, Error, TEXT("Navigation data was not created for %s."), *TargetMapPath);
+			return false;
+		}
+
+		return true;
+	}
+
 	bool BootstrapMap(UWorld* TargetWorld, const FString& TargetMapPath, UBSItemDefinition* BatteryDefinition, UBSItemDefinition* FilterDefinition, UBSTaskDefinition* WaterPowerTask)
 	{
 		if (!TargetWorld || !BatteryDefinition || !FilterDefinition || !WaterPowerTask)
@@ -438,6 +463,11 @@ namespace
 
 		BatteryPickup->ItemDefinition = BatteryDefinition;
 		FilterPickup->ItemDefinition = FilterDefinition;
+
+		if (!RebuildNavigationData(TargetWorld, NavBounds, TargetMapPath))
+		{
+			return false;
+		}
 
 		return true;
 	}

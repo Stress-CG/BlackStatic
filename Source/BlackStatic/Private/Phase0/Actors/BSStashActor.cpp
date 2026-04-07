@@ -58,6 +58,16 @@ void ABSStashActor::Interact_Implementation(AActor* Interactor)
 				4.0f);
 		}
 	}
+	else if (SettlementSubsystem->WithdrawAllStashToInventory(Character->GetInventoryComponent()))
+	{
+		if (ABSPhase0PlayerController* Phase0Controller = Character->GetController<ABSPhase0PlayerController>())
+		{
+			Phase0Controller->ShowPhase0Message(
+				NSLOCTEXT("BlackStatic", "StashWithdrawn", "Reclaimed the persistent stash into your backpack. Carried gear is back in the field and at risk again."),
+				FLinearColor(0.44f, 0.78f, 0.96f),
+				4.5f);
+		}
+	}
 	else if (ABSPhase0PlayerController* Phase0Controller = Character->GetController<ABSPhase0PlayerController>())
 	{
 		const FBSSettlementState& SettlementState = SettlementSubsystem->GetSettlementState();
@@ -70,5 +80,5 @@ void ABSStashActor::Interact_Implementation(AActor* Interactor)
 
 FText ABSStashActor::GetInteractionPrompt_Implementation() const
 {
-	return NSLOCTEXT("BlackStatic", "StashPrompt", "Deposit Carried Items");
+	return NSLOCTEXT("BlackStatic", "StashPrompt", "Deposit Or Reclaim Supplies");
 }

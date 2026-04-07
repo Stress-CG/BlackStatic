@@ -1,5 +1,6 @@
 #include "Phase0/UI/BSPhase0HUDWidget.h"
 
+#include "Blueprint/UserWidget.h"
 #include "Blueprint/WidgetTree.h"
 #include "Components/Border.h"
 #include "Components/CanvasPanel.h"
@@ -284,22 +285,49 @@ void UBSPhase0HUDWidget::BuildHud()
 	BackpackPanel = MakePanel(WidgetTree, TEXT("BackpackPanel"), FLinearColor(0.01f, 0.01f, 0.01f, 0.92f));
 	if (UCanvasPanelSlot* CanvasSlot = RootCanvas->AddChildToCanvas(BackpackPanel))
 	{
-		CanvasSlot->SetAnchors(FAnchors(1.0f, 0.5f));
-		CanvasSlot->SetAlignment(FVector2D(1.0f, 0.5f));
-		CanvasSlot->SetPosition(FVector2D(-22.0f, 0.0f));
-		CanvasSlot->SetSize(FVector2D(430.0f, 620.0f));
+		CanvasSlot->SetAnchors(FAnchors(0.5f, 0.5f));
+		CanvasSlot->SetAlignment(FVector2D(0.5f, 0.5f));
+		CanvasSlot->SetPosition(FVector2D(0.0f, 0.0f));
+		CanvasSlot->SetSize(FVector2D(980.0f, 680.0f));
 	}
 	BackpackPanel->SetVisibility(ESlateVisibility::Collapsed);
 
+	BackpackCanvas = MakeWidget<UCanvasPanel>(WidgetTree, TEXT("BackpackCanvas"));
+	BackpackPanel->SetContent(BackpackCanvas);
+
+	if (GetOwningPlayer())
+	{
+		if (TSubclassOf<UUserWidget> LegacyShellClass = LoadClass<UUserWidget>(nullptr, TEXT("/Game/UI/Inventory/WBP_InventoryShell.WBP_InventoryShell_C")))
+		{
+			LegacyBackpackShellWidget = CreateWidget<UUserWidget>(GetOwningPlayer(), LegacyShellClass);
+			if (LegacyBackpackShellWidget)
+			{
+				LegacyBackpackShellWidget->SetVisibility(ESlateVisibility::HitTestInvisible);
+				if (UCanvasPanelSlot* CanvasSlot = BackpackCanvas->AddChildToCanvas(LegacyBackpackShellWidget))
+				{
+					CanvasSlot->SetAnchors(FAnchors(0.0f, 0.0f, 1.0f, 1.0f));
+					CanvasSlot->SetOffsets(FMargin(0.0f));
+				}
+			}
+		}
+	}
+
+	BackpackDetailsPanel = MakePanel(WidgetTree, TEXT("BackpackDetailsPanel"), FLinearColor(0.02f, 0.03f, 0.05f, 0.90f));
+	if (UCanvasPanelSlot* CanvasSlot = BackpackCanvas->AddChildToCanvas(BackpackDetailsPanel))
+	{
+		CanvasSlot->SetAnchors(FAnchors(0.62f, 0.05f, 0.98f, 0.95f));
+		CanvasSlot->SetOffsets(FMargin(0.0f));
+	}
+
 	UVerticalBox* BackpackBox = MakeWidget<UVerticalBox>(WidgetTree, TEXT("BackpackBox"));
-	BackpackPanel->SetContent(BackpackBox);
+	BackpackDetailsPanel->SetContent(BackpackBox);
 	BackpackImage = MakeWidget<UImage>(WidgetTree, TEXT("BackpackImage"));
 	if (UTexture2D* BackpackTexture = LoadObject<UTexture2D>(nullptr, TEXT("/Game/UI/Inventory/Items/Images/IMG_Backpack.IMG_Backpack")))
 	{
 		BackpackImage->SetBrushFromTexture(BackpackTexture, true);
 		if (UVerticalBoxSlot* VerticalSlot = BackpackBox->AddChildToVerticalBox(BackpackImage))
 		{
-			VerticalSlot->SetPadding(FMargin(0.0f, 0.0f, 0.0f, 10.0f));
+			VerticalSlot->SetPadding(FMargin(0.0f, 0.0f, 0.0f, 8.0f));
 			VerticalSlot->SetHorizontalAlignment(HAlign_Left);
 		}
 	}
@@ -442,7 +470,23 @@ void UBSPhase0HUDWidget::RefreshInventoryPanel()
 
 	if (BackpackHintText)
 	{
-		BackpackHintText->SetText(NSLOCTEXT("BlackStatic", "BackpackHint", "Tab / I closes the backpack. Carried gear is lost on death, stash survives."));
+		const UBSInventoryComponent* InventoryComponent = ResolveInventory();
+		const UBSSettlementSubsystem* SettlementSubsystem = ResolveSettlementSubsystem();
+		const bool bHasCarriedItems = InventoryComponent && InventoryComponent->GetItems().Num() > 0;
+		const bool bHasPersistentStash = SettlementSubsystem && SettlementSubsystem->HasPersistentStashItems();
+
+		if (bHasPersistentStash)
+		{
+			BackpackHintText->SetText(NSLOCTEXT("BlackStatic", "BackpackHintStashReady", "Tab / I closes the backpack. Use the stash crate to reclaim banked gear into this backpack. Carried gear is lost on death, stash survives."));
+		}
+		else if (bHasCarriedItems)
+		{
+			BackpackHintText->SetText(NSLOCTEXT("BlackStatic", "BackpackHintCarriedOnly", "Tab / I closes the backpack. Deposit recovered gear at the stash crate if you want the settlement to keep it."));
+		}
+		else
+		{
+			BackpackHintText->SetText(NSLOCTEXT("BlackStatic", "BackpackHintEmpty", "Tab / I closes the backpack. Search the zone for supplies, then bank them at the stash crate before you die."));
+		}
 	}
 
 	if (const FString InventorySignature = BuildInventorySignature(); InventorySignature != LastInventorySignature)
@@ -621,6 +665,11 @@ FText UBSPhase0HUDWidget::BuildInteractionPromptText() const
 
 	if (bBackpackVisible)
 	{
+		if (const UBSSettlementSubsystem* SettlementSubsystem = ResolveSettlementSubsystem(); SettlementSubsystem && SettlementSubsystem->HasPersistentStashItems())
+		{
+			return NSLOCTEXT("BlackStatic", "HudPromptCloseBackpackStashReady", "[Tab / I] Close backpack. Visit the stash crate to pull your banked gear back into the field.");
+		}
+
 		return NSLOCTEXT("BlackStatic", "HudPromptCloseBackpack", "[Tab / I] Close backpack and return to the world.");
 	}
 
