@@ -1,0 +1,2 @@
+PackName,Vendor,Status,TargetZone,PrimaryFolders,ScaleChecked,CollisionChecked,NaniteOrLODChecked,MaterialsUnified,Notes
+Example_Suburban_Pack,Fab,Queued,Suburban,"Architecture/Houses;Architecture/Garages;Props/Roadside",No,No,No,No,"Use this row as a template for incoming packs."

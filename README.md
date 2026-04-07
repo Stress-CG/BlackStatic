@@ -12,6 +12,7 @@ Black Static is now wired as an Unreal Engine 5.7 C++ + Blueprint project with t
 - A benchmark commandlet that can scaffold scenario assets and execute benchmark runs.
 - A Phase 0 gameplay framework with survivor vitals, inventory/stash persistence, reputation, infected AI, objective pickups, a settlement stash, extraction, and task board actors.
 - A Phase 0 bootstrap commandlet that scaffolds item/task assets, upgrades the authored gameplay maps, and preserves a standalone prototype map.
+- A reusable asset-library scaffold under `Content/Art/Library` for vehicles, buildings, props, foliage, fauna, materials, decals, and prefab sets.
 - PowerShell scripts for bootstrap, build, test, and benchmark execution on Windows.
 
 ## Quick start
@@ -25,6 +26,7 @@ Black Static is now wired as an Unreal Engine 5.7 C++ + Blueprint project with t
 7. Run `powershell -ExecutionPolicy Bypass -File .\scripts\demo-phase0.ps1` for the main Black Static gameplay map
 8. Run `powershell -ExecutionPolicy Bypass -File .\scripts\demo-phase0.ps1 -Map Prototype` for the isolated survival prototype map
 9. Run `powershell -ExecutionPolicy Bypass -File .\scripts\package.ps1` for a packaged Windows build
+10. Run `powershell -ExecutionPolicy Bypass -File .\scripts\bootstrap-asset-library.ps1` to scaffold the worldbuilding asset library
 
 ## Important assumptions
 
@@ -32,3 +34,4 @@ Black Static is now wired as an Unreal Engine 5.7 C++ + Blueprint project with t
 - Visual Studio 2022 Community with VC++ tools is installed locally
 - The first milestone is editor-playable and commandlet-runnable on Windows
 - `MAP_TutorialRoad_P` is the primary gameplay map and project default once Phase 0 bootstrap has been run
+- Asset-library layout and import standards are documented in `docs\ART_LIBRARY.md`
