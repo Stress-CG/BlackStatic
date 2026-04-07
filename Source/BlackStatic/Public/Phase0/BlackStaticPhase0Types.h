@@ -77,7 +77,7 @@ struct FBSItemStack
 
 	bool IsValid() const
 	{
-		return Quantity > 0 && (!ItemId.IsNone() || ItemDefinition.IsValid() || ItemDefinition.ToSoftObjectPath().IsValid());
+		return Quantity > 0 && (!ItemId.IsNone() || !ItemDefinition.IsNull());
 	}
 };
 

@@ -5,6 +5,7 @@ public class BlackStatic : ModuleRules
     public BlackStatic(ReadOnlyTargetRules Target) : base(Target)
     {
         PCHUsage = PCHUsageMode.UseExplicitOrSharedPCHs;
+        bUseUnity = false;
 
         PublicDependencyModuleNames.AddRange(
             new[]

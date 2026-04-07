@@ -1,7 +1,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "Engine/PrimaryDataAsset.h"
+#include "Engine/DataAsset.h"
 #include "Phase0/BlackStaticPhase0Types.h"
 #include "BSTaskDefinition.generated.h"
 

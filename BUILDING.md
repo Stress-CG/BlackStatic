@@ -27,10 +27,22 @@ Run the benchmark commandlet and scaffold missing assets:
 powershell -ExecutionPolicy Bypass -File .\scripts\run-benchmark.ps1
 ```
 
+Bootstrap the Phase 0 survival prototype map and data assets:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\scripts\bootstrap-phase0.ps1
+```
+
 Open the benchmark demo map in the editor:
 
 ```powershell
 powershell -ExecutionPolicy Bypass -File .\scripts\demo-editor.ps1
+```
+
+Open the Phase 0 prototype map in the editor:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\scripts\demo-phase0.ps1
 ```
 
 Create a packaged Windows build:
@@ -51,3 +63,4 @@ powershell -ExecutionPolicy Bypass -File .\scripts\test.ps1
 - Benchmark artifacts are written to `Saved\Benchmarks\`.
 - Demo map runs write aggregate artifacts to `Saved\DemoRuns\`.
 - The benchmark commandlet can recreate missing scenario assets and the benchmark map.
+- The Phase 0 bootstrap commandlet creates data assets under `Content\Phase0\Data\` and a playable prototype map at `Content\Phase0\Maps\MAP_Phase0_Prototype.umap`.
