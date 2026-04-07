@@ -53,9 +53,12 @@ void ABSPhase0PlayerController::SetBackpackVisible(const bool bVisible)
 		FInputModeGameAndUI InputMode;
 		InputMode.SetHideCursorDuringCapture(false);
 		InputMode.SetLockMouseToViewportBehavior(EMouseLockMode::DoNotLock);
-		if (HUDWidget && HUDWidget->GetCachedWidget().IsValid())
+		if (HUDWidget)
 		{
-			InputMode.SetWidgetToFocus(HUDWidget->GetCachedWidget());
+			if (TSharedPtr<SWidget> FocusWidget = HUDWidget->GetBackpackFocusWidget(); FocusWidget.IsValid())
+			{
+				InputMode.SetWidgetToFocus(FocusWidget);
+			}
 		}
 
 		SetInputMode(InputMode);

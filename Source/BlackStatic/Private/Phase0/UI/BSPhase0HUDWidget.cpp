@@ -107,8 +107,20 @@ namespace
 void UBSPhase0HUDWidget::NativeConstruct()
 {
 	Super::NativeConstruct();
+	SetIsFocusable(true);
 	BuildHud();
 	RefreshNow();
+}
+
+void UBSPhase0HUDWidget::NativeDestruct()
+{
+	if (LegacyBackpackShellWidget)
+	{
+		LegacyBackpackShellWidget->RemoveFromParent();
+		LegacyBackpackShellWidget = nullptr;
+	}
+
+	Super::NativeDestruct();
 }
 
 void UBSPhase0HUDWidget::NativeTick(const FGeometry& MyGeometry, const float InDeltaTime)
@@ -148,6 +160,11 @@ void UBSPhase0HUDWidget::SetBackpackVisible(const bool bVisible)
 {
 	bBackpackVisible = bVisible;
 
+	if (LegacyBackpackShellWidget)
+	{
+		LegacyBackpackShellWidget->SetVisibility(bBackpackVisible ? ESlateVisibility::Visible : ESlateVisibility::Collapsed);
+	}
+
 	if (BackpackPanel)
 	{
 		BackpackPanel->SetVisibility(bBackpackVisible ? ESlateVisibility::Visible : ESlateVisibility::Collapsed);
@@ -159,6 +176,16 @@ void UBSPhase0HUDWidget::SetBackpackVisible(const bool bVisible)
 bool UBSPhase0HUDWidget::IsBackpackVisible() const
 {
 	return bBackpackVisible;
+}
+
+TSharedPtr<SWidget> UBSPhase0HUDWidget::GetBackpackFocusWidget() const
+{
+	if (LegacyBackpackShellWidget && LegacyBackpackShellWidget->GetCachedWidget().IsValid())
+	{
+		return LegacyBackpackShellWidget->GetCachedWidget();
+	}
+
+	return GetCachedWidget();
 }
 
 void UBSPhase0HUDWidget::PushNotification(const FText& Message, const FLinearColor& Color, const float DurationSeconds)
@@ -302,12 +329,8 @@ void UBSPhase0HUDWidget::BuildHud()
 			LegacyBackpackShellWidget = CreateWidget<UUserWidget>(GetOwningPlayer(), LegacyShellClass);
 			if (LegacyBackpackShellWidget)
 			{
-				LegacyBackpackShellWidget->SetVisibility(ESlateVisibility::HitTestInvisible);
-				if (UCanvasPanelSlot* CanvasSlot = BackpackCanvas->AddChildToCanvas(LegacyBackpackShellWidget))
-				{
-					CanvasSlot->SetAnchors(FAnchors(0.0f, 0.0f, 1.0f, 1.0f));
-					CanvasSlot->SetOffsets(FMargin(0.0f));
-				}
+				LegacyBackpackShellWidget->SetVisibility(ESlateVisibility::Collapsed);
+				LegacyBackpackShellWidget->AddToViewport(30);
 			}
 		}
 	}
@@ -318,6 +341,7 @@ void UBSPhase0HUDWidget::BuildHud()
 		CanvasSlot->SetAnchors(FAnchors(0.62f, 0.05f, 0.98f, 0.95f));
 		CanvasSlot->SetOffsets(FMargin(0.0f));
 	}
+	BackpackDetailsPanel->SetVisibility(LegacyBackpackShellWidget ? ESlateVisibility::Collapsed : ESlateVisibility::Visible);
 
 	UVerticalBox* BackpackBox = MakeWidget<UVerticalBox>(WidgetTree, TEXT("BackpackBox"));
 	BackpackDetailsPanel->SetContent(BackpackBox);
@@ -465,7 +489,8 @@ void UBSPhase0HUDWidget::RefreshInventoryPanel()
 {
 	if (BackpackPanel)
 	{
-		BackpackPanel->SetVisibility(bBackpackVisible ? ESlateVisibility::Visible : ESlateVisibility::Collapsed);
+		const bool bUseFallbackInventoryPanel = !LegacyBackpackShellWidget;
+		BackpackPanel->SetVisibility((bBackpackVisible && bUseFallbackInventoryPanel) ? ESlateVisibility::Visible : ESlateVisibility::Collapsed);
 	}
 
 	if (BackpackHintText)

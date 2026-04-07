@@ -3,6 +3,7 @@
 #include "CoreMinimal.h"
 #include "Blueprint/UserWidget.h"
 #include "Phase0/BlackStaticPhase0Types.h"
+#include "Templates/SharedPointer.h"
 #include "BSPhase0HUDWidget.generated.h"
 
 class UBorder;
@@ -13,6 +14,7 @@ class UScrollBox;
 class UTextBlock;
 class UUserWidget;
 class UVerticalBox;
+class SWidget;
 
 UCLASS()
 class BLACKSTATIC_API UBSPhase0HUDWidget : public UUserWidget
@@ -21,10 +23,12 @@ class BLACKSTATIC_API UBSPhase0HUDWidget : public UUserWidget
 
 public:
 	virtual void NativeConstruct() override;
+	virtual void NativeDestruct() override;
 	virtual void NativeTick(const FGeometry& MyGeometry, float InDeltaTime) override;
 
 	void SetBackpackVisible(bool bVisible);
 	bool IsBackpackVisible() const;
+	TSharedPtr<SWidget> GetBackpackFocusWidget() const;
 
 	void PushNotification(const FText& Message, const FLinearColor& Color, float DurationSeconds);
 	void RefreshNow();
