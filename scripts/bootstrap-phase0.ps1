@@ -2,7 +2,10 @@ param(
     [string]$UERoot = "D:\Epic Games\UE_5.7",
     [switch]$SkipBuild,
     [switch]$AssetsOnly,
-    [switch]$MapOnly
+    [switch]$MapOnly,
+    [switch]$PrototypeOnly,
+    [switch]$MainMapsOnly,
+    [string[]]$TargetMap
 )
 
 $ErrorActionPreference = "Stop"
@@ -35,7 +38,19 @@ if ($MapOnly) {
     $CommandArgs += "-MapOnly"
 }
 
-Write-Host "[phase0] Bootstrapping Phase 0 assets and prototype map"
+if ($PrototypeOnly) {
+    $CommandArgs += "-PrototypeOnly"
+}
+
+if ($MainMapsOnly) {
+    $CommandArgs += "-MainMapsOnly"
+}
+
+if ($TargetMap) {
+    $CommandArgs += "-TargetMap=$($TargetMap -join ',')"
+}
+
+Write-Host "[phase0] Bootstrapping Phase 0 assets and gameplay maps"
 & $EditorCmd $CommandArgs
 if ($LASTEXITCODE -ne 0) {
     throw "Phase 0 bootstrap commandlet failed with exit code $LASTEXITCODE."

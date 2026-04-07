@@ -1,6 +1,8 @@
 param(
     [string]$UERoot = "D:\Epic Games\UE_5.7",
-    [switch]$SkipBuild
+    [switch]$SkipBuild,
+    [ValidateSet("Main", "Prototype", "FirstPerson")]
+    [string]$Map = "Main"
 )
 
 $ErrorActionPreference = "Stop"
@@ -15,5 +17,11 @@ if (-not $SkipBuild) {
     & (Join-Path $PSScriptRoot "build.ps1") -UERoot $UERoot
 }
 
-Write-Host "[phase0] Opening MAP_Phase0_Prototype in Unreal Editor"
-& $EditorExe "`"$ProjectFile`"" "/Game/Phase0/Maps/MAP_Phase0_Prototype"
+$MapPath = switch ($Map) {
+    "Prototype" { "/Game/Phase0/Maps/MAP_Phase0_Prototype" }
+    "FirstPerson" { "/Game/FirstPerson/Lvl_FirstPerson" }
+    default { "/Game/MAP_TutorialRoad_P" }
+}
+
+Write-Host "[phase0] Opening $MapPath in Unreal Editor"
+& $EditorExe "`"$ProjectFile`"" $MapPath

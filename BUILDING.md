@@ -27,7 +27,7 @@ Run the benchmark commandlet and scaffold missing assets:
 powershell -ExecutionPolicy Bypass -File .\scripts\run-benchmark.ps1
 ```
 
-Bootstrap the Phase 0 survival prototype map and data assets:
+Bootstrap the Phase 0 survival systems into the main gameplay maps plus the standalone prototype map:
 
 ```powershell
 powershell -ExecutionPolicy Bypass -File .\scripts\bootstrap-phase0.ps1
@@ -39,10 +39,16 @@ Open the benchmark demo map in the editor:
 powershell -ExecutionPolicy Bypass -File .\scripts\demo-editor.ps1
 ```
 
-Open the Phase 0 prototype map in the editor:
+Open the Phase 0 main gameplay map in the editor:
 
 ```powershell
 powershell -ExecutionPolicy Bypass -File .\scripts\demo-phase0.ps1
+```
+
+Open the isolated Phase 0 prototype map instead:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\scripts\demo-phase0.ps1 -Map Prototype
 ```
 
 Create a packaged Windows build:
@@ -63,4 +69,5 @@ powershell -ExecutionPolicy Bypass -File .\scripts\test.ps1
 - Benchmark artifacts are written to `Saved\Benchmarks\`.
 - Demo map runs write aggregate artifacts to `Saved\DemoRuns\`.
 - The benchmark commandlet can recreate missing scenario assets and the benchmark map.
-- The Phase 0 bootstrap commandlet creates data assets under `Content\Phase0\Data\` and a playable prototype map at `Content\Phase0\Maps\MAP_Phase0_Prototype.umap`.
+- The Phase 0 bootstrap commandlet creates data assets under `Content\Phase0\Data\`, upgrades `Content\MAP_TutorialRoad_P.umap` and `Content\FirstPerson\Lvl_FirstPerson.umap`, and keeps the isolated prototype map at `Content\Phase0\Maps\MAP_Phase0_Prototype.umap`.
+- `MAP_TutorialRoad_P` is the project default map after bootstrap so opening the project drops you into the authored Black Static space instead of the engine template.

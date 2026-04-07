@@ -1,12 +1,15 @@
 #include "Phase0/Commandlets/BSPhase0BootstrapCommandlet.h"
 
 #include "AssetRegistry/AssetRegistryModule.h"
+#include "CollisionQueryParams.h"
 #include "Engine/DirectionalLight.h"
 #include "Engine/SkyLight.h"
 #include "Engine/StaticMeshActor.h"
+#include "Engine/World.h"
 #include "EngineUtils.h"
 #include "GameFramework/PlayerStart.h"
 #include "Misc/PackageName.h"
+#include "Misc/Parse.h"
 #include "Misc/Paths.h"
 #include "NavMesh/NavMeshBoundsVolume.h"
 #include "Phase0/Actors/BSExtractionPoint.h"
@@ -28,8 +31,34 @@ namespace
 {
 	static const FString ItemRoot = TEXT("/Game/Phase0/Data/Items");
 	static const FString TaskRoot = TEXT("/Game/Phase0/Data/Tasks");
-	static const FString MapPath = TEXT("/Game/Phase0/Maps/MAP_Phase0_Prototype");
+	static const FString PrototypeMapPath = TEXT("/Game/Phase0/Maps/MAP_Phase0_Prototype");
+	static const FString MainMapPath = TEXT("/Game/MAP_TutorialRoad_P");
+	static const FString FirstPersonMapPath = TEXT("/Game/FirstPerson/Lvl_FirstPerson");
 	static const FString SpawnedActorPrefix = TEXT("BSP0_");
+
+	struct FBootstrapMeshSpec
+	{
+		FString LabelSuffix;
+		FVector LocalOffset = FVector::ZeroVector;
+		FVector Scale = FVector::OneVector;
+		FRotator LocalRotation = FRotator::ZeroRotator;
+		float PlacementHeight = 80.0f;
+	};
+
+	struct FBootstrapMapLayout
+	{
+		bool bSpawnPrototypeShell = false;
+		FVector TaskBoardOffset = FVector(180.0f, 0.0f, 0.0f);
+		FVector StashOffset = FVector(360.0f, 110.0f, 0.0f);
+		FVector ExtractionOffset = FVector(540.0f, -110.0f, 0.0f);
+		FVector ObjectiveOffset = FVector(4100.0f, 0.0f, 0.0f);
+		FVector BatteryOffset = FVector(3800.0f, -220.0f, 0.0f);
+		FVector FilterOffset = FVector(4375.0f, 230.0f, 0.0f);
+		FVector NavMeshCenterOffset = FVector(2200.0f, 0.0f, 200.0f);
+		FVector NavMeshScale = FVector(20.0f, 12.0f, 4.0f);
+		float ObjectiveDefenseRadius = 1200.0f;
+		TArray<FBootstrapMeshSpec> SupportMeshes;
+	};
 
 	template <typename TAssetType>
 	TAssetType* CreateOrLoadAsset(const FString& PackageName, const FString& AssetName)
@@ -64,6 +93,109 @@ namespace
 		return UPackage::SavePackage(Package, Asset, *FilePath, SaveArgs);
 	}
 
+	FString ToObjectPath(const FString& AssetPath)
+	{
+		return FString::Printf(TEXT("%s.%s"), *AssetPath, *FPackageName::GetShortName(AssetPath));
+	}
+
+	bool IsPrototypeMapPath(const FString& MapPath)
+	{
+		return MapPath.Equals(PrototypeMapPath, ESearchCase::IgnoreCase);
+	}
+
+	FBootstrapMapLayout BuildLayoutForMap(const FString& MapPath)
+	{
+		FBootstrapMapLayout Layout;
+		if (IsPrototypeMapPath(MapPath))
+		{
+			Layout.bSpawnPrototypeShell = true;
+			Layout.SupportMeshes =
+			{
+				{ TEXT("SettlementWallA"), FVector(900.0f, 350.0f, 0.0f), FVector(2.0f, 0.15f, 2.0f), FRotator::ZeroRotator, 100.0f },
+				{ TEXT("SettlementWallB"), FVector(900.0f, -350.0f, 0.0f), FVector(2.0f, 0.15f, 2.0f), FRotator::ZeroRotator, 100.0f },
+				{ TEXT("RoadBlockA"), FVector(2350.0f, 260.0f, 0.0f), FVector(1.6f, 0.5f, 1.8f), FRotator::ZeroRotator, 90.0f },
+				{ TEXT("RoadBlockB"), FVector(2600.0f, -260.0f, 0.0f), FVector(1.6f, 0.5f, 1.8f), FRotator::ZeroRotator, 90.0f },
+				{ TEXT("SiteBarrierA"), FVector(3950.0f, 420.0f, 0.0f), FVector(2.4f, 0.25f, 2.2f), FRotator::ZeroRotator, 110.0f },
+				{ TEXT("SiteBarrierB"), FVector(3950.0f, -420.0f, 0.0f), FVector(2.4f, 0.25f, 2.2f), FRotator::ZeroRotator, 110.0f }
+			};
+			return Layout;
+		}
+
+		if (MapPath.Equals(MainMapPath, ESearchCase::IgnoreCase))
+		{
+			Layout.TaskBoardOffset = FVector(250.0f, 180.0f, 0.0f);
+			Layout.StashOffset = FVector(420.0f, -170.0f, 0.0f);
+			Layout.ExtractionOffset = FVector(620.0f, 0.0f, 0.0f);
+			Layout.ObjectiveOffset = FVector(5200.0f, 0.0f, 0.0f);
+			Layout.BatteryOffset = FVector(4840.0f, -360.0f, 0.0f);
+			Layout.FilterOffset = FVector(5520.0f, 320.0f, 0.0f);
+			Layout.NavMeshCenterOffset = FVector(2900.0f, 0.0f, 240.0f);
+			Layout.NavMeshScale = FVector(34.0f, 18.0f, 6.0f);
+			Layout.ObjectiveDefenseRadius = 1500.0f;
+			Layout.SupportMeshes =
+			{
+				{ TEXT("MainMapCheckpointA"), FVector(1700.0f, 260.0f, 0.0f), FVector(0.8f, 0.8f, 1.6f), FRotator::ZeroRotator, 90.0f },
+				{ TEXT("MainMapCheckpointB"), FVector(1700.0f, -260.0f, 0.0f), FVector(0.8f, 0.8f, 1.6f), FRotator::ZeroRotator, 90.0f },
+				{ TEXT("MainMapObjectiveBarricadeA"), FVector(5050.0f, 420.0f, 0.0f), FVector(1.4f, 0.25f, 1.8f), FRotator::ZeroRotator, 90.0f },
+				{ TEXT("MainMapObjectiveBarricadeB"), FVector(5050.0f, -420.0f, 0.0f), FVector(1.4f, 0.25f, 1.8f), FRotator::ZeroRotator, 90.0f }
+			};
+			return Layout;
+		}
+
+		Layout.TaskBoardOffset = FVector(220.0f, 120.0f, 0.0f);
+		Layout.StashOffset = FVector(360.0f, -120.0f, 0.0f);
+		Layout.ExtractionOffset = FVector(540.0f, 0.0f, 0.0f);
+		Layout.ObjectiveOffset = FVector(2800.0f, 0.0f, 0.0f);
+		Layout.BatteryOffset = FVector(2520.0f, -240.0f, 0.0f);
+		Layout.FilterOffset = FVector(3080.0f, 210.0f, 0.0f);
+		Layout.NavMeshCenterOffset = FVector(1550.0f, 0.0f, 200.0f);
+		Layout.NavMeshScale = FVector(18.0f, 12.0f, 4.0f);
+		Layout.ObjectiveDefenseRadius = 1000.0f;
+		Layout.SupportMeshes =
+		{
+			{ TEXT("ArenaGateA"), FVector(1200.0f, 280.0f, 0.0f), FVector(0.7f, 0.3f, 1.4f), FRotator::ZeroRotator, 85.0f },
+			{ TEXT("ArenaGateB"), FVector(1200.0f, -280.0f, 0.0f), FVector(0.7f, 0.3f, 1.4f), FRotator::ZeroRotator, 85.0f }
+		};
+		return Layout;
+	}
+
+	TArray<FString> ResolveTargetMaps(const FString& Params)
+	{
+		TArray<FString> TargetMaps;
+
+		FString ExplicitTargetMapList;
+		if (FParse::Value(*Params, TEXT("TargetMap="), ExplicitTargetMapList))
+		{
+			ExplicitTargetMapList.ParseIntoArray(TargetMaps, TEXT(","), true);
+			for (FString& TargetMap : TargetMaps)
+			{
+				TargetMap.TrimStartAndEndInline();
+			}
+
+			TargetMaps.RemoveAll([](const FString& Value)
+			{
+				return Value.IsEmpty();
+			});
+			return TargetMaps;
+		}
+
+		const bool bPrototypeOnly = FParse::Param(*Params, TEXT("PrototypeOnly"));
+		const bool bMainMapsOnly = FParse::Param(*Params, TEXT("MainMapsOnly"));
+
+		if (!bMainMapsOnly)
+		{
+			TargetMaps.Add(PrototypeMapPath);
+		}
+
+		if (!bPrototypeOnly)
+		{
+			TargetMaps.Add(MainMapPath);
+			TargetMaps.Add(FirstPersonMapPath);
+		}
+
+		return TargetMaps;
+	}
+
 #if WITH_EDITOR
 	void DestroyExistingBootstrapActors(UWorld* World)
 	{
@@ -93,18 +225,221 @@ namespace
 		}
 	}
 
-	AStaticMeshActor* SpawnMeshActor(UWorld* World, UStaticMesh* StaticMesh, const FString& Label, const FVector& Location, const FVector& Scale, const FRotator& Rotation = FRotator::ZeroRotator)
+	template <typename TActorType>
+	TActorType* SpawnPhase0Actor(UWorld* World, UClass* ActorClass, const FString& Label, const FVector& Location, const FRotator& Rotation)
 	{
-		AStaticMeshActor* Actor = World->SpawnActor<AStaticMeshActor>(Location, Rotation);
+		FActorSpawnParameters SpawnParameters;
+		SpawnParameters.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AdjustIfPossibleButAlwaysSpawn;
+
+		TActorType* Actor = ActorClass
+			? World->SpawnActor<TActorType>(ActorClass, Location, Rotation, SpawnParameters)
+			: World->SpawnActor<TActorType>(Location, Rotation, SpawnParameters);
 		if (!Actor)
 		{
 			return nullptr;
 		}
 
 		Actor->SetActorLabel(Label);
+		return Actor;
+	}
+
+	AStaticMeshActor* SpawnMeshActor(UWorld* World, UStaticMesh* StaticMesh, const FString& Label, const FVector& Location, const FVector& Scale, const FRotator& Rotation = FRotator::ZeroRotator)
+	{
+		AStaticMeshActor* Actor = SpawnPhase0Actor<AStaticMeshActor>(World, nullptr, Label, Location, Rotation);
+		if (!Actor)
+		{
+			return nullptr;
+		}
+
 		Actor->GetStaticMeshComponent()->SetStaticMesh(StaticMesh);
 		Actor->SetActorScale3D(Scale);
+		Actor->GetStaticMeshComponent()->SetMobility(EComponentMobility::Static);
 		return Actor;
+	}
+
+	APlayerStart* FindOrCreatePlayerStart(UWorld* World)
+	{
+		for (TActorIterator<APlayerStart> It(World); It; ++It)
+		{
+			if (APlayerStart* Existing = *It)
+			{
+				return Existing;
+			}
+		}
+
+		return SpawnPhase0Actor<APlayerStart>(World, nullptr, SpawnedActorPrefix + TEXT("PlayerStart"), FVector(0.0f, 0.0f, 120.0f), FRotator::ZeroRotator);
+	}
+
+	FVector ResolveGroundLocation(UWorld* World, const FVector& DesiredLocation, const float HeightOffset)
+	{
+		if (!World)
+		{
+			return DesiredLocation;
+		}
+
+		const FVector TraceStart = DesiredLocation + FVector(0.0f, 0.0f, 4000.0f);
+		const FVector TraceEnd = DesiredLocation - FVector(0.0f, 0.0f, 4000.0f);
+		FCollisionQueryParams QueryParams(SCENE_QUERY_STAT(BSPhase0GroundTrace), true);
+		QueryParams.bTraceComplex = false;
+
+		FHitResult HitResult;
+		if (World->LineTraceSingleByChannel(HitResult, TraceStart, TraceEnd, ECC_WorldStatic, QueryParams))
+		{
+			return HitResult.ImpactPoint + FVector(0.0f, 0.0f, HeightOffset);
+		}
+
+		return DesiredLocation + FVector(0.0f, 0.0f, HeightOffset);
+	}
+
+	FVector ResolveLocalPlacement(UWorld* World, const FTransform& AnchorTransform, const FVector& LocalOffset, const float HeightOffset)
+	{
+		return ResolveGroundLocation(World, AnchorTransform.TransformPosition(LocalOffset), HeightOffset);
+	}
+
+	UWorld* LoadOrCreateMap(const FString& MapPath)
+	{
+		if (FPackageName::DoesPackageExist(MapPath))
+		{
+			const FString MapFilename = FPackageName::LongPackageNameToFilename(MapPath, FPackageName::GetMapPackageExtension());
+			return UEditorLoadingAndSavingUtils::LoadMap(MapFilename);
+		}
+
+		if (IsPrototypeMapPath(MapPath))
+		{
+			return UEditorLoadingAndSavingUtils::NewBlankMap(false);
+		}
+
+		return nullptr;
+	}
+
+	bool BootstrapMap(UWorld* TargetWorld, const FString& TargetMapPath, UBSItemDefinition* BatteryDefinition, UBSItemDefinition* FilterDefinition, UBSTaskDefinition* WaterPowerTask)
+	{
+		if (!TargetWorld || !BatteryDefinition || !FilterDefinition || !WaterPowerTask)
+		{
+			return false;
+		}
+
+		UStaticMesh* PlaneMesh = LoadObject<UStaticMesh>(nullptr, TEXT("/Engine/BasicShapes/Plane.Plane"));
+		UStaticMesh* CubeMesh = LoadObject<UStaticMesh>(nullptr, TEXT("/Engine/BasicShapes/Cube.Cube"));
+		if (!PlaneMesh || !CubeMesh)
+		{
+			UE_LOG(LogTemp, Error, TEXT("Failed to load required engine meshes for %s."), *TargetMapPath);
+			return false;
+		}
+
+		DestroyExistingBootstrapActors(TargetWorld);
+
+		if (TargetWorld->GetWorldSettings())
+		{
+			TargetWorld->GetWorldSettings()->Modify();
+			TargetWorld->GetWorldSettings()->DefaultGameMode = ABSPhase0GameMode::StaticClass();
+		}
+
+		APlayerStart* PlayerStart = FindOrCreatePlayerStart(TargetWorld);
+		if (!PlayerStart)
+		{
+			UE_LOG(LogTemp, Error, TEXT("Failed to locate or create a PlayerStart for %s."), *TargetMapPath);
+			return false;
+		}
+
+		const FTransform AnchorTransform(PlayerStart->GetActorRotation(), PlayerStart->GetActorLocation());
+		const FBootstrapMapLayout Layout = BuildLayoutForMap(TargetMapPath);
+
+		if (Layout.bSpawnPrototypeShell)
+		{
+			const FVector GroundLocation = ResolveGroundLocation(TargetWorld, AnchorTransform.TransformPosition(FVector(2200.0f, 0.0f, -10.0f)), 0.0f);
+			SpawnMeshActor(TargetWorld, PlaneMesh, SpawnedActorPrefix + TEXT("Ground"), GroundLocation, FVector(45.0f, 18.0f, 1.0f), AnchorTransform.GetRotation().Rotator());
+
+			SpawnPhase0Actor<ADirectionalLight>(
+				TargetWorld,
+				nullptr,
+				SpawnedActorPrefix + TEXT("DirectionalLight"),
+				ResolveGroundLocation(TargetWorld, AnchorTransform.TransformPosition(FVector(0.0f, 0.0f, 600.0f)), 600.0f),
+				FRotator(-50.0f, 35.0f, 0.0f));
+			SpawnPhase0Actor<ASkyLight>(
+				TargetWorld,
+				nullptr,
+				SpawnedActorPrefix + TEXT("SkyLight"),
+				ResolveGroundLocation(TargetWorld, AnchorTransform.TransformPosition(FVector(0.0f, 0.0f, 250.0f)), 250.0f),
+				FRotator::ZeroRotator);
+		}
+
+		ANavMeshBoundsVolume* NavBounds = SpawnPhase0Actor<ANavMeshBoundsVolume>(
+			TargetWorld,
+			nullptr,
+			SpawnedActorPrefix + TEXT("NavMeshBounds"),
+			ResolveLocalPlacement(TargetWorld, AnchorTransform, Layout.NavMeshCenterOffset, Layout.NavMeshCenterOffset.Z),
+			FRotator::ZeroRotator);
+		if (NavBounds)
+		{
+			NavBounds->SetActorScale3D(Layout.NavMeshScale);
+		}
+
+		for (const FBootstrapMeshSpec& MeshSpec : Layout.SupportMeshes)
+		{
+			SpawnMeshActor(
+				TargetWorld,
+				CubeMesh,
+				SpawnedActorPrefix + MeshSpec.LabelSuffix,
+				ResolveLocalPlacement(TargetWorld, AnchorTransform, MeshSpec.LocalOffset, MeshSpec.PlacementHeight),
+				MeshSpec.Scale,
+				AnchorTransform.GetRotation().Rotator() + MeshSpec.LocalRotation);
+		}
+
+		ABSTaskBoardActor* TaskBoard = SpawnPhase0Actor<ABSTaskBoardActor>(
+			TargetWorld,
+			nullptr,
+			SpawnedActorPrefix + TEXT("TaskBoard"),
+			ResolveLocalPlacement(TargetWorld, AnchorTransform, Layout.TaskBoardOffset, 40.0f),
+			AnchorTransform.GetRotation().Rotator());
+		ABSStashActor* Stash = SpawnPhase0Actor<ABSStashActor>(
+			TargetWorld,
+			nullptr,
+			SpawnedActorPrefix + TEXT("Stash"),
+			ResolveLocalPlacement(TargetWorld, AnchorTransform, Layout.StashOffset, 40.0f),
+			AnchorTransform.GetRotation().Rotator());
+		ABSExtractionPoint* Extraction = SpawnPhase0Actor<ABSExtractionPoint>(
+			TargetWorld,
+			nullptr,
+			SpawnedActorPrefix + TEXT("Extraction"),
+			ResolveLocalPlacement(TargetWorld, AnchorTransform, Layout.ExtractionOffset, 10.0f),
+			AnchorTransform.GetRotation().Rotator());
+		ABSWaterPowerObjectiveActor* ObjectiveActor = SpawnPhase0Actor<ABSWaterPowerObjectiveActor>(
+			TargetWorld,
+			nullptr,
+			SpawnedActorPrefix + TEXT("WaterPowerObjective"),
+			ResolveLocalPlacement(TargetWorld, AnchorTransform, Layout.ObjectiveOffset, 30.0f),
+			AnchorTransform.GetRotation().Rotator());
+		ABSObjectivePickup* BatteryPickup = SpawnPhase0Actor<ABSObjectivePickup>(
+			TargetWorld,
+			nullptr,
+			SpawnedActorPrefix + TEXT("BatteryPickup"),
+			ResolveLocalPlacement(TargetWorld, AnchorTransform, Layout.BatteryOffset, 35.0f),
+			AnchorTransform.GetRotation().Rotator());
+		ABSObjectivePickup* FilterPickup = SpawnPhase0Actor<ABSObjectivePickup>(
+			TargetWorld,
+			nullptr,
+			SpawnedActorPrefix + TEXT("FilterPickup"),
+			ResolveLocalPlacement(TargetWorld, AnchorTransform, Layout.FilterOffset, 35.0f),
+			AnchorTransform.GetRotation().Rotator());
+
+		if (!TaskBoard || !Stash || !Extraction || !ObjectiveActor || !BatteryPickup || !FilterPickup)
+		{
+			UE_LOG(LogTemp, Error, TEXT("Failed to place one or more Phase 0 actors into %s."), *TargetMapPath);
+			return false;
+		}
+
+		TaskBoard->TaskDefinition = WaterPowerTask;
+		TaskBoard->LinkedObjective = ObjectiveActor;
+
+		ObjectiveActor->TaskDefinition = WaterPowerTask;
+		ObjectiveActor->InfectedClass = ABSInfectedCharacter::StaticClass();
+		ObjectiveActor->ObjectiveDefenseRadius = Layout.ObjectiveDefenseRadius;
+
+		BatteryPickup->ItemDefinition = BatteryDefinition;
+		FilterPickup->ItemDefinition = FilterDefinition;
+
+		return true;
 	}
 #endif
 }
@@ -124,7 +459,7 @@ int32 UBSPhase0BootstrapCommandlet::Main(const FString& Params)
 	return 1;
 #else
 	const bool bCreateAssets = !FParse::Param(*Params, TEXT("MapOnly"));
-	const bool bCreateMap = !FParse::Param(*Params, TEXT("AssetsOnly"));
+	const bool bCreateMaps = !FParse::Param(*Params, TEXT("AssetsOnly"));
 
 	IFileManager::Get().MakeDirectory(*(FPaths::ProjectContentDir() / TEXT("Phase0/Data/Items")), true);
 	IFileManager::Get().MakeDirectory(*(FPaths::ProjectContentDir() / TEXT("Phase0/Data/Tasks")), true);
@@ -208,122 +543,67 @@ int32 UBSPhase0BootstrapCommandlet::Main(const FString& Params)
 		SaveAsset(WaterPowerTask);
 	}
 
-	if (!bCreateMap)
+	if (!bCreateMaps)
 	{
 		return 0;
 	}
 
 	if (!BatteryDefinition)
 	{
-		BatteryDefinition = LoadObject<UBSItemDefinition>(nullptr, TEXT("/Game/Phase0/Data/Items/DA_BS_Battery.DA_BS_Battery"));
+		BatteryDefinition = LoadObject<UBSItemDefinition>(nullptr, *ToObjectPath(TEXT("/Game/Phase0/Data/Items/DA_BS_Battery")));
 	}
 
 	if (!FilterDefinition)
 	{
-		FilterDefinition = LoadObject<UBSItemDefinition>(nullptr, TEXT("/Game/Phase0/Data/Items/DA_BS_Filter.DA_BS_Filter"));
+		FilterDefinition = LoadObject<UBSItemDefinition>(nullptr, *ToObjectPath(TEXT("/Game/Phase0/Data/Items/DA_BS_Filter")));
 	}
 
-	UBSTaskDefinition* WaterPowerTask = LoadObject<UBSTaskDefinition>(nullptr, TEXT("/Game/Phase0/Data/Tasks/DA_BS_WaterPowerRestoration.DA_BS_WaterPowerRestoration"));
+	UBSTaskDefinition* WaterPowerTask = LoadObject<UBSTaskDefinition>(nullptr, *ToObjectPath(TEXT("/Game/Phase0/Data/Tasks/DA_BS_WaterPowerRestoration")));
 	if (!BatteryDefinition || !FilterDefinition || !WaterPowerTask)
 	{
 		UE_LOG(LogTemp, Error, TEXT("Phase 0 assets are missing. Run the bootstrap with asset creation enabled."));
 		return 1;
 	}
 
-	const FString MapFilename = FPackageName::LongPackageNameToFilename(MapPath, FPackageName::GetMapPackageExtension());
-	UWorld* PrototypeWorld = nullptr;
-	if (FPackageName::DoesPackageExist(MapPath))
+	const TArray<FString> TargetMaps = ResolveTargetMaps(Params);
+	if (TargetMaps.Num() == 0)
 	{
-		PrototypeWorld = UEditorLoadingAndSavingUtils::LoadMap(MapFilename);
-	}
-	else
-	{
-		PrototypeWorld = UEditorLoadingAndSavingUtils::NewBlankMap(false);
-	}
-
-	if (!PrototypeWorld)
-	{
-		UE_LOG(LogTemp, Error, TEXT("Failed to create or load the Phase 0 prototype map."));
+		UE_LOG(LogTemp, Error, TEXT("No target maps were resolved for the Phase 0 bootstrap."));
 		return 1;
 	}
 
-	DestroyExistingBootstrapActors(PrototypeWorld);
-	PrototypeWorld->GetWorldSettings()->DefaultGameMode = ABSPhase0GameMode::StaticClass();
-	PrototypeWorld->GetWorldSettings()->Modify();
-
-	UStaticMesh* PlaneMesh = LoadObject<UStaticMesh>(nullptr, TEXT("/Engine/BasicShapes/Plane.Plane"));
-	UStaticMesh* CubeMesh = LoadObject<UStaticMesh>(nullptr, TEXT("/Engine/BasicShapes/Cube.Cube"));
-	if (!PlaneMesh || !CubeMesh)
+	TArray<FString> UpdatedMaps;
+	for (const FString& TargetMapPath : TargetMaps)
 	{
-		UE_LOG(LogTemp, Error, TEXT("Failed to load required engine meshes for the prototype map."));
+		UWorld* TargetWorld = LoadOrCreateMap(TargetMapPath);
+		if (!TargetWorld)
+		{
+			UE_LOG(LogTemp, Warning, TEXT("Skipping %s because it could not be loaded or created."), *TargetMapPath);
+			continue;
+		}
+
+		if (!BootstrapMap(TargetWorld, TargetMapPath, BatteryDefinition, FilterDefinition, WaterPowerTask))
+		{
+			return 1;
+		}
+
+		if (!UEditorLoadingAndSavingUtils::SaveMap(TargetWorld, TargetMapPath))
+		{
+			UE_LOG(LogTemp, Error, TEXT("Failed to save map %s."), *TargetMapPath);
+			return 1;
+		}
+
+		UpdatedMaps.Add(TargetMapPath);
+		UE_LOG(LogTemp, Display, TEXT("Phase 0 content applied to %s"), *TargetMapPath);
+	}
+
+	if (UpdatedMaps.Num() == 0)
+	{
+		UE_LOG(LogTemp, Error, TEXT("Phase 0 bootstrap did not update any maps."));
 		return 1;
 	}
 
-	APlayerStart* PlayerStart = PrototypeWorld->SpawnActor<APlayerStart>(FVector(0.0f, 0.0f, 120.0f), FRotator::ZeroRotator);
-	PlayerStart->SetActorLabel(SpawnedActorPrefix + TEXT("PlayerStart"));
-
-	ANavMeshBoundsVolume* NavBounds = PrototypeWorld->SpawnActor<ANavMeshBoundsVolume>(FVector(2200.0f, 0.0f, 200.0f), FRotator::ZeroRotator);
-	NavBounds->SetActorScale3D(FVector(20.0f, 12.0f, 4.0f));
-	NavBounds->SetActorLabel(SpawnedActorPrefix + TEXT("NavMeshBounds"));
-
-	AStaticMeshActor* Ground = SpawnMeshActor(PrototypeWorld, PlaneMesh, SpawnedActorPrefix + TEXT("Ground"), FVector(2200.0f, 0.0f, 0.0f), FVector(45.0f, 18.0f, 1.0f));
-	if (Ground)
-	{
-		Ground->GetStaticMeshComponent()->SetMobility(EComponentMobility::Static);
-	}
-
-	AStaticMeshActor* SettlementWallA = SpawnMeshActor(PrototypeWorld, CubeMesh, SpawnedActorPrefix + TEXT("SettlementWallA"), FVector(900.0f, 350.0f, 100.0f), FVector(2.0f, 0.15f, 2.0f));
-	AStaticMeshActor* SettlementWallB = SpawnMeshActor(PrototypeWorld, CubeMesh, SpawnedActorPrefix + TEXT("SettlementWallB"), FVector(900.0f, -350.0f, 100.0f), FVector(2.0f, 0.15f, 2.0f));
-	AStaticMeshActor* RoadBlockA = SpawnMeshActor(PrototypeWorld, CubeMesh, SpawnedActorPrefix + TEXT("RoadBlockA"), FVector(2350.0f, 260.0f, 90.0f), FVector(1.6f, 0.5f, 1.8f));
-	AStaticMeshActor* RoadBlockB = SpawnMeshActor(PrototypeWorld, CubeMesh, SpawnedActorPrefix + TEXT("RoadBlockB"), FVector(2600.0f, -260.0f, 90.0f), FVector(1.6f, 0.5f, 1.8f));
-	AStaticMeshActor* SiteBarrierA = SpawnMeshActor(PrototypeWorld, CubeMesh, SpawnedActorPrefix + TEXT("SiteBarrierA"), FVector(3950.0f, 420.0f, 110.0f), FVector(2.4f, 0.25f, 2.2f));
-	AStaticMeshActor* SiteBarrierB = SpawnMeshActor(PrototypeWorld, CubeMesh, SpawnedActorPrefix + TEXT("SiteBarrierB"), FVector(3950.0f, -420.0f, 110.0f), FVector(2.4f, 0.25f, 2.2f));
-	if (SettlementWallA) { SettlementWallA->GetStaticMeshComponent()->SetMobility(EComponentMobility::Static); }
-	if (SettlementWallB) { SettlementWallB->GetStaticMeshComponent()->SetMobility(EComponentMobility::Static); }
-	if (RoadBlockA) { RoadBlockA->GetStaticMeshComponent()->SetMobility(EComponentMobility::Static); }
-	if (RoadBlockB) { RoadBlockB->GetStaticMeshComponent()->SetMobility(EComponentMobility::Static); }
-	if (SiteBarrierA) { SiteBarrierA->GetStaticMeshComponent()->SetMobility(EComponentMobility::Static); }
-	if (SiteBarrierB) { SiteBarrierB->GetStaticMeshComponent()->SetMobility(EComponentMobility::Static); }
-
-	ADirectionalLight* DirectionalLight = PrototypeWorld->SpawnActor<ADirectionalLight>(FVector(0.0f, 0.0f, 600.0f), FRotator(-50.0f, 35.0f, 0.0f));
-	DirectionalLight->SetActorLabel(SpawnedActorPrefix + TEXT("DirectionalLight"));
-
-	ASkyLight* SkyLight = PrototypeWorld->SpawnActor<ASkyLight>(FVector(0.0f, 0.0f, 250.0f), FRotator::ZeroRotator);
-	SkyLight->SetActorLabel(SpawnedActorPrefix + TEXT("SkyLight"));
-
-	ABSTaskBoardActor* TaskBoard = PrototypeWorld->SpawnActor<ABSTaskBoardActor>(FVector(180.0f, 0.0f, 40.0f), FRotator::ZeroRotator);
-	TaskBoard->SetActorLabel(SpawnedActorPrefix + TEXT("TaskBoard"));
-	TaskBoard->TaskDefinition = WaterPowerTask;
-
-	ABSStashActor* Stash = PrototypeWorld->SpawnActor<ABSStashActor>(FVector(360.0f, 110.0f, 40.0f), FRotator::ZeroRotator);
-	Stash->SetActorLabel(SpawnedActorPrefix + TEXT("Stash"));
-
-	ABSExtractionPoint* Extraction = PrototypeWorld->SpawnActor<ABSExtractionPoint>(FVector(540.0f, -110.0f, 10.0f), FRotator::ZeroRotator);
-	Extraction->SetActorLabel(SpawnedActorPrefix + TEXT("Extraction"));
-
-	ABSWaterPowerObjectiveActor* ObjectiveActor = PrototypeWorld->SpawnActor<ABSWaterPowerObjectiveActor>(FVector(4100.0f, 0.0f, 30.0f), FRotator::ZeroRotator);
-	ObjectiveActor->SetActorLabel(SpawnedActorPrefix + TEXT("WaterPowerObjective"));
-	ObjectiveActor->TaskDefinition = WaterPowerTask;
-	ObjectiveActor->InfectedClass = ABSInfectedCharacter::StaticClass();
-	ObjectiveActor->ObjectiveDefenseRadius = 1200.0f;
-
-	TaskBoard->LinkedObjective = ObjectiveActor;
-
-	ABSObjectivePickup* BatteryPickup = PrototypeWorld->SpawnActor<ABSObjectivePickup>(FVector(3800.0f, -220.0f, 35.0f), FRotator::ZeroRotator);
-	BatteryPickup->SetActorLabel(SpawnedActorPrefix + TEXT("BatteryPickup"));
-	BatteryPickup->ItemDefinition = BatteryDefinition;
-
-	ABSObjectivePickup* FilterPickup = PrototypeWorld->SpawnActor<ABSObjectivePickup>(FVector(4375.0f, 230.0f, 35.0f), FRotator::ZeroRotator);
-	FilterPickup->SetActorLabel(SpawnedActorPrefix + TEXT("FilterPickup"));
-	FilterPickup->ItemDefinition = FilterDefinition;
-
-	if (!UEditorLoadingAndSavingUtils::SaveMap(PrototypeWorld, MapPath))
-	{
-		UE_LOG(LogTemp, Error, TEXT("Failed to save the Phase 0 prototype map."));
-		return 1;
-	}
-
-	UE_LOG(LogTemp, Display, TEXT("Phase 0 prototype content is ready at %s"), *MapPath);
+	UE_LOG(LogTemp, Display, TEXT("Phase 0 content is ready on %d map(s). Primary gameplay map: %s"), UpdatedMaps.Num(), *MainMapPath);
 	return 0;
 #endif
 }
