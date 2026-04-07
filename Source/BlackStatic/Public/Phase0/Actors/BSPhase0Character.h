@@ -124,9 +124,6 @@ private:
 	UPROPERTY()
 	TObjectPtr<UInputAction> RunInputAction;
 
-	UPROPERTY()
-	TObjectPtr<UInputAction> InventoryInputAction;
-
 	float MovementNoiseAccumulator = 0.0f;
 	float StressVisualTimeSeconds = 0.0f;
 	bool bSprintRequested = false;

@@ -502,15 +502,15 @@ void UBSPhase0HUDWidget::RefreshInventoryPanel()
 
 		if (bHasPersistentStash)
 		{
-			BackpackHintText->SetText(NSLOCTEXT("BlackStatic", "BackpackHintStashReady", "Tab / I closes the backpack. Use the stash crate to reclaim banked gear into this backpack. Carried gear is lost on death, stash survives."));
+			BackpackHintText->SetText(NSLOCTEXT("BlackStatic", "BackpackHintStashReady", "Tab closes the backpack. Use the stash crate to reclaim banked gear into this backpack. Carried gear is lost on death, stash survives."));
 		}
 		else if (bHasCarriedItems)
 		{
-			BackpackHintText->SetText(NSLOCTEXT("BlackStatic", "BackpackHintCarriedOnly", "Tab / I closes the backpack. Deposit recovered gear at the stash crate if you want the settlement to keep it."));
+			BackpackHintText->SetText(NSLOCTEXT("BlackStatic", "BackpackHintCarriedOnly", "Tab closes the backpack. Deposit recovered gear at the stash crate if you want the settlement to keep it."));
 		}
 		else
 		{
-			BackpackHintText->SetText(NSLOCTEXT("BlackStatic", "BackpackHintEmpty", "Tab / I closes the backpack. Search the zone for supplies, then bank them at the stash crate before you die."));
+			BackpackHintText->SetText(NSLOCTEXT("BlackStatic", "BackpackHintEmpty", "Tab closes the backpack. Search the zone for supplies, then bank them at the stash crate before you die."));
 		}
 	}
 
@@ -692,10 +692,10 @@ FText UBSPhase0HUDWidget::BuildInteractionPromptText() const
 	{
 		if (const UBSSettlementSubsystem* SettlementSubsystem = ResolveSettlementSubsystem(); SettlementSubsystem && SettlementSubsystem->HasPersistentStashItems())
 		{
-			return NSLOCTEXT("BlackStatic", "HudPromptCloseBackpackStashReady", "[Tab / I] Close backpack. Visit the stash crate to pull your banked gear back into the field.");
+			return NSLOCTEXT("BlackStatic", "HudPromptCloseBackpackStashReady", "[Tab] Close backpack. Visit the stash crate to pull your banked gear back into the field.");
 		}
 
-		return NSLOCTEXT("BlackStatic", "HudPromptCloseBackpack", "[Tab / I] Close backpack and return to the world.");
+		return NSLOCTEXT("BlackStatic", "HudPromptCloseBackpack", "[Tab] Close backpack and return to the world.");
 	}
 
 	if (const FText CurrentPrompt = Character->GetCurrentInteractionPrompt(); !CurrentPrompt.IsEmpty())
@@ -709,7 +709,7 @@ FText UBSPhase0HUDWidget::BuildInteractionPromptText() const
 		return NSLOCTEXT("BlackStatic", "HudPromptGuideTaskBoard", "Find the task board in the settlement and press E to accept your first field run.");
 	}
 
-	return NSLOCTEXT("BlackStatic", "HudPromptGuideBackpack", "[Tab / I] Open backpack to review carried items and stash progress.");
+	return NSLOCTEXT("BlackStatic", "HudPromptGuideBackpack", "[Tab] Open backpack to review carried items and stash progress.");
 }
 
 FString UBSPhase0HUDWidget::BuildInventorySignature() const

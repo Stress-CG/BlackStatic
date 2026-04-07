@@ -115,7 +115,7 @@ void ABSPhase0PlayerController::HandleControlledPawnChanged()
 	}
 
 	ShowPhase0Message(
-		NSLOCTEXT("BlackStatic", "Phase0OnboardingSpawn", "Use E to interact, Tab or I to open your backpack, and start at the task board."),
+		NSLOCTEXT("BlackStatic", "Phase0OnboardingSpawn", "Use E to interact, press Tab to open your backpack, and start at the task board."),
 		FLinearColor(0.72f, 0.90f, 1.0f),
 		6.0f);
 }

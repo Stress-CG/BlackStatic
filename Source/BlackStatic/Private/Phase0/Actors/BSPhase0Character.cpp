@@ -50,7 +50,6 @@ ABSPhase0Character::ABSPhase0Character()
 	static ConstructorHelpers::FObjectFinder<UInputAction> JumpActionFinder(TEXT("/Game/Input/Actions/IA_Jump.IA_Jump"));
 	static ConstructorHelpers::FObjectFinder<UInputAction> CrouchActionFinder(TEXT("/Game/Input/Actions/IA_Crouch.IA_Crouch"));
 	static ConstructorHelpers::FObjectFinder<UInputAction> RunActionFinder(TEXT("/Game/Input/Actions/IA_Run.IA_Run"));
-	static ConstructorHelpers::FObjectFinder<UInputAction> InventoryActionFinder(TEXT("/Game/Input/Actions/IA_Inventory.IA_Inventory"));
 
 	DefaultInputMapping = DefaultMappingFinder.Succeeded() ? DefaultMappingFinder.Object : nullptr;
 	MouseLookMapping = MouseMappingFinder.Succeeded() ? MouseMappingFinder.Object : nullptr;
@@ -60,7 +59,6 @@ ABSPhase0Character::ABSPhase0Character()
 	JumpInputAction = JumpActionFinder.Succeeded() ? JumpActionFinder.Object : nullptr;
 	CrouchInputAction = CrouchActionFinder.Succeeded() ? CrouchActionFinder.Object : nullptr;
 	RunInputAction = RunActionFinder.Succeeded() ? RunActionFinder.Object : nullptr;
-	InventoryInputAction = InventoryActionFinder.Succeeded() ? InventoryActionFinder.Object : nullptr;
 }
 
 void ABSPhase0Character::BeginPlay()
@@ -152,15 +150,10 @@ void ABSPhase0Character::SetupPlayerInputComponent(UInputComponent* PlayerInputC
 			EnhancedInputComponent->BindAction(RunInputAction, ETriggerEvent::Canceled, this, &ABSPhase0Character::InputSprintStopped);
 		}
 
-		if (InventoryInputAction)
-		{
-			EnhancedInputComponent->BindAction(InventoryInputAction, ETriggerEvent::Started, this, &ABSPhase0Character::InputToggleInventory);
-		}
 	}
 
 	PlayerInputComponent->BindKey(EKeys::E, IE_Pressed, this, &ABSPhase0Character::TryInteract);
 	PlayerInputComponent->BindKey(EKeys::Tab, IE_Pressed, this, &ABSPhase0Character::InputToggleInventory);
-	PlayerInputComponent->BindKey(EKeys::I, IE_Pressed, this, &ABSPhase0Character::InputToggleInventory);
 }
 
 float ABSPhase0Character::TakeDamage(const float DamageAmount, FDamageEvent const& DamageEvent, AController* EventInstigator, AActor* DamageCauser)
