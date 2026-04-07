@@ -14,8 +14,11 @@ public class BlackStatic : ModuleRules
                 "Engine",
                 "InputCore",
                 "EnhancedInput",
+                "AIModule",
+                "GameplayTasks",
                 "Json",
                 "JsonUtilities",
+                "NavigationSystem",
                 "Slate",
                 "SlateCore",
                 "UMG"
