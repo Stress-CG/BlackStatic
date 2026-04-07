@@ -5,6 +5,7 @@
 #include "Engine/Engine.h"
 #include "Phase0/Actors/BSPhase0Character.h"
 #include "Phase0/Components/BSInventoryComponent.h"
+#include "Phase0/Framework/BSPhase0PlayerController.h"
 #include "Phase0/Systems/BSSettlementSubsystem.h"
 #include "UObject/ConstructorHelpers.h"
 
@@ -49,20 +50,21 @@ void ABSStashActor::Interact_Implementation(AActor* Interactor)
 	if (Character->GetInventoryComponent()->GetItems().Num() > 0)
 	{
 		SettlementSubsystem->DepositInventory(Character->GetInventoryComponent());
-		if (GEngine)
+		if (ABSPhase0PlayerController* Phase0Controller = Character->GetController<ABSPhase0PlayerController>())
 		{
-			GEngine->AddOnScreenDebugMessage(-1, 2.5f, FColor::Green, TEXT("Deposited carried items into the persistent stash."));
+			Phase0Controller->ShowPhase0Message(
+				NSLOCTEXT("BlackStatic", "StashDeposited", "Deposited carried items into the persistent stash. Future survivors can reclaim them."),
+				FLinearColor(0.22f, 0.78f, 0.46f),
+				4.0f);
 		}
 	}
-	else if (GEngine)
+	else if (ABSPhase0PlayerController* Phase0Controller = Character->GetController<ABSPhase0PlayerController>())
 	{
 		const FBSSettlementState& SettlementState = SettlementSubsystem->GetSettlementState();
-		GEngine->AddOnScreenDebugMessage(
-			-1,
-			3.0f,
-			FColor::Cyan,
-			FString::Printf(TEXT("Stash ready. Reputation %.0f | USD %d | Power %d | Water %d"), SettlementState.Reputation, SettlementState.USD, SettlementState.Power, SettlementState.Water)
-		);
+		Phase0Controller->ShowPhase0Message(
+			FText::FromString(FString::Printf(TEXT("Stash ready. Reputation %.0f | USD %d | Power %d | Water %d"), SettlementState.Reputation, SettlementState.USD, SettlementState.Power, SettlementState.Water)),
+			FLinearColor(0.48f, 0.86f, 0.92f),
+			4.0f);
 	}
 }
 

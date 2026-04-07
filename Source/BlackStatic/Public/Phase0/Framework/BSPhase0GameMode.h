@@ -5,6 +5,7 @@
 #include "BSPhase0GameMode.generated.h"
 
 class ABSPhase0Character;
+class ABSPhase0PlayerController;
 
 UCLASS()
 class BLACKSTATIC_API ABSPhase0GameMode : public AGameModeBase

@@ -9,6 +9,7 @@
 #include "Phase0/Components/BSTaskComponent.h"
 #include "Phase0/Components/BSSurvivorStateComponent.h"
 #include "Phase0/Data/BSTaskDefinition.h"
+#include "Phase0/Framework/BSPhase0PlayerController.h"
 #include "UObject/ConstructorHelpers.h"
 
 ABSTaskBoardActor::ABSTaskBoardActor()
@@ -46,9 +47,12 @@ void ABSTaskBoardActor::Interact_Implementation(AActor* Interactor)
 	UBSTaskComponent* TaskComponent = Character->GetTaskComponent();
 	if (TaskComponent->HasActiveTask())
 	{
-		if (GEngine)
+		if (ABSPhase0PlayerController* Phase0Controller = Character->GetController<ABSPhase0PlayerController>())
 		{
-			GEngine->AddOnScreenDebugMessage(-1, 2.5f, FColor::Silver, TEXT("Task already active. Complete or fail your current run first."));
+			Phase0Controller->ShowPhase0Message(
+				NSLOCTEXT("BlackStatic", "TaskAlreadyActive", "Task already active. Finish the current run or die trying before accepting another."),
+				FLinearColor(0.80f, 0.82f, 0.86f),
+				3.5f);
 		}
 		return;
 	}
@@ -57,10 +61,13 @@ void ABSTaskBoardActor::Interact_Implementation(AActor* Interactor)
 	if (TaskComponent->AcceptTask(TaskDefinition, LinkedObjective, PartySize))
 	{
 		LinkedObjective->ActivateObjective(PartySize);
-		if (GEngine)
+		if (ABSPhase0PlayerController* Phase0Controller = Character->GetController<ABSPhase0PlayerController>())
 		{
 			const FString TaskName = TaskDefinition->DisplayName.IsEmpty() ? TaskDefinition->GetName() : TaskDefinition->DisplayName.ToString();
-			GEngine->AddOnScreenDebugMessage(-1, 3.0f, FColor::Green, FString::Printf(TEXT("Accepted task: %s | Party Size: %d"), *TaskName, PartySize));
+			Phase0Controller->ShowPhase0Message(
+				FText::FromString(FString::Printf(TEXT("Accepted task: %s. Recover the battery and filter, restore the site, then extract."), *TaskName)),
+				FLinearColor(0.24f, 0.82f, 0.42f),
+				5.0f);
 		}
 	}
 }

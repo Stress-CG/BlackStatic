@@ -15,6 +15,7 @@
 #include "Phase0/Components/BSNoiseEmitterComponent.h"
 #include "Phase0/Components/BSSurvivorStateComponent.h"
 #include "Phase0/Components/BSTaskComponent.h"
+#include "Phase0/Framework/BSPhase0PlayerController.h"
 #include "Phase0/Interfaces/BSInteractableInterface.h"
 #include "Phase0/Framework/BSPhase0GameMode.h"
 #include "UObject/ConstructorHelpers.h"
@@ -49,6 +50,7 @@ ABSPhase0Character::ABSPhase0Character()
 	static ConstructorHelpers::FObjectFinder<UInputAction> JumpActionFinder(TEXT("/Game/Input/Actions/IA_Jump.IA_Jump"));
 	static ConstructorHelpers::FObjectFinder<UInputAction> CrouchActionFinder(TEXT("/Game/Input/Actions/IA_Crouch.IA_Crouch"));
 	static ConstructorHelpers::FObjectFinder<UInputAction> RunActionFinder(TEXT("/Game/Input/Actions/IA_Run.IA_Run"));
+	static ConstructorHelpers::FObjectFinder<UInputAction> InventoryActionFinder(TEXT("/Game/Input/Actions/IA_Inventory.IA_Inventory"));
 
 	DefaultInputMapping = DefaultMappingFinder.Succeeded() ? DefaultMappingFinder.Object : nullptr;
 	MouseLookMapping = MouseMappingFinder.Succeeded() ? MouseMappingFinder.Object : nullptr;
@@ -58,6 +60,7 @@ ABSPhase0Character::ABSPhase0Character()
 	JumpInputAction = JumpActionFinder.Succeeded() ? JumpActionFinder.Object : nullptr;
 	CrouchInputAction = CrouchActionFinder.Succeeded() ? CrouchActionFinder.Object : nullptr;
 	RunInputAction = RunActionFinder.Succeeded() ? RunActionFinder.Object : nullptr;
+	InventoryInputAction = InventoryActionFinder.Succeeded() ? InventoryActionFinder.Object : nullptr;
 }
 
 void ABSPhase0Character::BeginPlay()
@@ -74,8 +77,12 @@ void ABSPhase0Character::BeginPlay()
 		SurvivorStateComponent->OnDeath.AddDynamic(this, &ABSPhase0Character::HandleSurvivorDeath);
 	}
 
+	BaseCameraRelativeLocation = FirstPersonCameraComponent ? FirstPersonCameraComponent->GetRelativeLocation() : FVector::ZeroVector;
+	BaseCameraFOV = FirstPersonCameraComponent ? FirstPersonCameraComponent->FieldOfView : 90.0f;
 	ApplyInputMappings();
 	UpdateMovementSpeedFromVitals();
+	UpdateFocusedInteractable();
+	UpdateStressCameraEffects(0.0f);
 }
 
 void ABSPhase0Character::Tick(const float DeltaSeconds)
@@ -83,6 +90,8 @@ void ABSPhase0Character::Tick(const float DeltaSeconds)
 	Super::Tick(DeltaSeconds);
 
 	UpdateMovementSpeedFromVitals();
+	UpdateFocusedInteractable();
+	UpdateStressCameraEffects(DeltaSeconds);
 
 	if (!NoiseEmitterComponent || !SurvivorStateComponent || !SurvivorStateComponent->IsAlive())
 	{
@@ -142,9 +151,16 @@ void ABSPhase0Character::SetupPlayerInputComponent(UInputComponent* PlayerInputC
 			EnhancedInputComponent->BindAction(RunInputAction, ETriggerEvent::Completed, this, &ABSPhase0Character::InputSprintStopped);
 			EnhancedInputComponent->BindAction(RunInputAction, ETriggerEvent::Canceled, this, &ABSPhase0Character::InputSprintStopped);
 		}
+
+		if (InventoryInputAction)
+		{
+			EnhancedInputComponent->BindAction(InventoryInputAction, ETriggerEvent::Started, this, &ABSPhase0Character::InputToggleInventory);
+		}
 	}
 
 	PlayerInputComponent->BindKey(EKeys::E, IE_Pressed, this, &ABSPhase0Character::TryInteract);
+	PlayerInputComponent->BindKey(EKeys::Tab, IE_Pressed, this, &ABSPhase0Character::InputToggleInventory);
+	PlayerInputComponent->BindKey(EKeys::I, IE_Pressed, this, &ABSPhase0Character::InputToggleInventory);
 }
 
 float ABSPhase0Character::TakeDamage(const float DamageAmount, FDamageEvent const& DamageEvent, AController* EventInstigator, AActor* DamageCauser)
@@ -159,28 +175,18 @@ float ABSPhase0Character::TakeDamage(const float DamageAmount, FDamageEvent cons
 
 void ABSPhase0Character::TryInteract()
 {
-	if (!Controller)
+	UpdateFocusedInteractable();
+
+	if (!Controller || !FocusedInteractableActor.IsValid())
 	{
 		return;
 	}
 
-	FVector ViewLocation = FVector::ZeroVector;
-	FRotator ViewRotation = FRotator::ZeroRotator;
-	Controller->GetPlayerViewPoint(ViewLocation, ViewRotation);
-
-	const FVector TraceEnd = ViewLocation + (ViewRotation.Vector() * InteractionDistance);
-	FHitResult Hit;
-	FCollisionQueryParams QueryParams(SCENE_QUERY_STAT(Phase0Interact), true, this);
-
-	if (GetWorld()->LineTraceSingleByChannel(Hit, ViewLocation, TraceEnd, ECC_Visibility, QueryParams))
+	AActor* Interactable = FocusedInteractableActor.Get();
+	if (Interactable && Interactable->GetClass()->ImplementsInterface(UBSInteractableInterface::StaticClass()) && IBSInteractableInterface::Execute_CanInteract(Interactable, this))
 	{
-		if (AActor* HitActor = Hit.GetActor(); HitActor && HitActor->GetClass()->ImplementsInterface(UBSInteractableInterface::StaticClass()))
-		{
-			if (IBSInteractableInterface::Execute_CanInteract(HitActor, this))
-			{
-				IBSInteractableInterface::Execute_Interact(HitActor, this);
-			}
-		}
+		IBSInteractableInterface::Execute_Interact(Interactable, this);
+		UpdateFocusedInteractable();
 	}
 }
 
@@ -218,6 +224,16 @@ UBSTaskComponent* ABSPhase0Character::GetTaskComponent() const
 	return TaskComponent;
 }
 
+FText ABSPhase0Character::GetCurrentInteractionPrompt() const
+{
+	return FocusedInteractionPrompt;
+}
+
+AActor* ABSPhase0Character::GetFocusedInteractableActor() const
+{
+	return FocusedInteractableActor.Get();
+}
+
 void ABSPhase0Character::HandleSurvivorDeath()
 {
 	DisableInput(Cast<APlayerController>(Controller));
@@ -227,6 +243,68 @@ void ABSPhase0Character::HandleSurvivorDeath()
 	{
 		Phase0GameMode->HandleSurvivorDeath(this);
 	}
+}
+
+void ABSPhase0Character::UpdateFocusedInteractable()
+{
+	FocusedInteractableActor = nullptr;
+	FocusedInteractionPrompt = FText::GetEmpty();
+
+	if (!Controller || !GetWorld())
+	{
+		return;
+	}
+
+	FVector ViewLocation = FVector::ZeroVector;
+	FRotator ViewRotation = FRotator::ZeroRotator;
+	Controller->GetPlayerViewPoint(ViewLocation, ViewRotation);
+
+	const FVector TraceEnd = ViewLocation + (ViewRotation.Vector() * InteractionDistance);
+	FHitResult Hit;
+	FCollisionQueryParams QueryParams(SCENE_QUERY_STAT(Phase0Interact), true, this);
+
+	if (!GetWorld()->LineTraceSingleByChannel(Hit, ViewLocation, TraceEnd, ECC_Visibility, QueryParams))
+	{
+		return;
+	}
+
+	AActor* HitActor = Hit.GetActor();
+	if (!HitActor || !HitActor->GetClass()->ImplementsInterface(UBSInteractableInterface::StaticClass()))
+	{
+		return;
+	}
+
+	if (!IBSInteractableInterface::Execute_CanInteract(HitActor, this))
+	{
+		return;
+	}
+
+	FocusedInteractableActor = HitActor;
+	FocusedInteractionPrompt = IBSInteractableInterface::Execute_GetInteractionPrompt(HitActor);
+}
+
+void ABSPhase0Character::UpdateStressCameraEffects(const float DeltaSeconds)
+{
+	if (!FirstPersonCameraComponent || !SurvivorStateComponent)
+	{
+		return;
+	}
+
+	const float StressStrength = FMath::Clamp(SurvivorStateComponent->GetVisionDisruptionStrength(), 0.0f, 1.0f);
+	StressVisualTimeSeconds += DeltaSeconds * (1.0f + (StressStrength * 2.5f));
+
+	const float Pulse = FMath::Sin(StressVisualTimeSeconds * 5.0f) * StressStrength;
+	const FVector CameraOffset(0.0f, FMath::Sin(StressVisualTimeSeconds * 2.3f) * StressStrength * 1.5f, FMath::Cos(StressVisualTimeSeconds * 3.1f) * StressStrength * 1.0f);
+	FirstPersonCameraComponent->SetRelativeLocation(BaseCameraRelativeLocation + CameraOffset);
+	FirstPersonCameraComponent->SetFieldOfView(BaseCameraFOV + (StressStrength * 3.5f) + (Pulse * 1.5f));
+
+	FPostProcessSettings& PostProcess = FirstPersonCameraComponent->PostProcessSettings;
+	PostProcess.bOverride_VignetteIntensity = true;
+	PostProcess.bOverride_SceneFringeIntensity = true;
+	PostProcess.bOverride_ColorSaturation = true;
+	PostProcess.VignetteIntensity = FMath::Lerp(0.35f, 0.75f, StressStrength);
+	PostProcess.SceneFringeIntensity = FMath::Lerp(0.0f, 3.0f, StressStrength);
+	PostProcess.ColorSaturation = FVector4(FMath::Lerp(1.0f, 0.72f, StressStrength), FMath::Lerp(1.0f, 0.72f, StressStrength), FMath::Lerp(1.0f, 0.72f, StressStrength), 1.0f);
 }
 
 void ABSPhase0Character::ApplyInputMappings()
@@ -317,4 +395,12 @@ void ABSPhase0Character::InputSprintStarted()
 void ABSPhase0Character::InputSprintStopped()
 {
 	SetSprintEnabled(false);
+}
+
+void ABSPhase0Character::InputToggleInventory()
+{
+	if (ABSPhase0PlayerController* Phase0Controller = Cast<ABSPhase0PlayerController>(Controller))
+	{
+		Phase0Controller->ToggleBackpack();
+	}
 }

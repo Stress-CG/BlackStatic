@@ -12,6 +12,7 @@ class UBSInventoryComponent;
 class UBSNoiseEmitterComponent;
 class UBSSurvivorStateComponent;
 class UBSTaskComponent;
+class AActor;
 struct FInputActionValue;
 
 UCLASS(Blueprintable)
@@ -63,6 +64,12 @@ public:
 	UFUNCTION(BlueprintPure, Category = "Phase0")
 	UBSTaskComponent* GetTaskComponent() const;
 
+	UFUNCTION(BlueprintPure, Category = "Interaction")
+	FText GetCurrentInteractionPrompt() const;
+
+	UFUNCTION(BlueprintPure, Category = "Interaction")
+	AActor* GetFocusedInteractableActor() const;
+
 protected:
 	UFUNCTION()
 	void HandleSurvivorDeath();
@@ -70,6 +77,8 @@ protected:
 private:
 	void ApplyInputMappings();
 	void UpdateMovementSpeedFromVitals();
+	void UpdateFocusedInteractable();
+	void UpdateStressCameraEffects(float DeltaSeconds);
 	void InputMove(const FInputActionValue& Value);
 	void InputLook(const FInputActionValue& Value);
 	void InputJumpStarted();
@@ -77,6 +86,7 @@ private:
 	void InputToggleCrouch();
 	void InputSprintStarted();
 	void InputSprintStopped();
+	void InputToggleInventory();
 
 	UPROPERTY(EditAnywhere, Category = "Phase0")
 	float IntentionalWalkSpeed = 260.0f;
@@ -114,6 +124,19 @@ private:
 	UPROPERTY()
 	TObjectPtr<UInputAction> RunInputAction;
 
+	UPROPERTY()
+	TObjectPtr<UInputAction> InventoryInputAction;
+
 	float MovementNoiseAccumulator = 0.0f;
+	float StressVisualTimeSeconds = 0.0f;
 	bool bSprintRequested = false;
+
+	UPROPERTY(Transient)
+	TWeakObjectPtr<AActor> FocusedInteractableActor;
+
+	UPROPERTY(Transient)
+	FText FocusedInteractionPrompt;
+
+	FVector BaseCameraRelativeLocation = FVector::ZeroVector;
+	float BaseCameraFOV = 90.0f;
 };

@@ -6,6 +6,7 @@
 #include "Phase0/Actors/BSPhase0Character.h"
 #include "Phase0/Components/BSTaskComponent.h"
 #include "Phase0/Data/BSTaskDefinition.h"
+#include "Phase0/Framework/BSPhase0PlayerController.h"
 #include "Phase0/Systems/BSSettlementSubsystem.h"
 #include "UObject/ConstructorHelpers.h"
 
@@ -45,9 +46,12 @@ void ABSExtractionPoint::Interact_Implementation(AActor* Interactor)
 	UBSTaskDefinition* ActiveTask = TaskComponent->GetActiveTask();
 	if (!ActiveTask || !TaskComponent->IsReadyForExtraction())
 	{
-		if (GEngine)
+		if (ABSPhase0PlayerController* Phase0Controller = Character->GetController<ABSPhase0PlayerController>())
 		{
-			GEngine->AddOnScreenDebugMessage(-1, 2.5f, FColor::Silver, TEXT("No completed field task ready for extraction."));
+			Phase0Controller->ShowPhase0Message(
+				NSLOCTEXT("BlackStatic", "ExtractNotReady", "No completed field task is ready to extract yet. Finish the site work first."),
+				FLinearColor(0.80f, 0.82f, 0.86f),
+				3.5f);
 		}
 		return;
 	}
@@ -59,9 +63,12 @@ void ABSExtractionPoint::Interact_Implementation(AActor* Interactor)
 
 	TaskComponent->CompleteTask();
 	TaskComponent->ClearTask();
-	if (GEngine)
+	if (ABSPhase0PlayerController* Phase0Controller = Character->GetController<ABSPhase0PlayerController>())
 	{
-		GEngine->AddOnScreenDebugMessage(-1, 3.0f, FColor::Green, TEXT("Extraction successful. Settlement reward applied."));
+		Phase0Controller->ShowPhase0Message(
+			NSLOCTEXT("BlackStatic", "ExtractSuccess", "Extraction successful. Settlement reward applied and progression advanced."),
+			FLinearColor(0.22f, 0.78f, 0.46f),
+			4.0f);
 	}
 }
 

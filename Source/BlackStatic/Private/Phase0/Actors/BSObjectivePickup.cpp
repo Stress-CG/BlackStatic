@@ -7,6 +7,7 @@
 #include "Phase0/Components/BSInventoryComponent.h"
 #include "Phase0/Components/BSNoiseEmitterComponent.h"
 #include "Phase0/Data/BSItemDefinition.h"
+#include "Phase0/Framework/BSPhase0PlayerController.h"
 #include "UObject/ConstructorHelpers.h"
 
 ABSObjectivePickup::ABSObjectivePickup()
@@ -47,10 +48,13 @@ void ABSObjectivePickup::Interact_Implementation(AActor* Interactor)
 		Emitter->EmitNoise(EBSNoiseType::Tool, PickupNoiseLoudness, TEXT("Pickup"), GetActorLocation());
 	}
 
-	if (GEngine)
+	if (ABSPhase0PlayerController* Phase0Controller = Character->GetController<ABSPhase0PlayerController>())
 	{
 		const FString ItemName = ItemDefinition->DisplayName.IsEmpty() ? ItemDefinition->GetName() : ItemDefinition->DisplayName.ToString();
-		GEngine->AddOnScreenDebugMessage(-1, 2.5f, FColor::Yellow, FString::Printf(TEXT("Picked up %s x%d"), *ItemName, Quantity));
+		Phase0Controller->ShowPhase0Message(
+			FText::FromString(FString::Printf(TEXT("Recovered %s x%d. Check your backpack and keep moving."), *ItemName, Quantity)),
+			FLinearColor(0.92f, 0.86f, 0.28f),
+			3.5f);
 	}
 
 	Destroy();

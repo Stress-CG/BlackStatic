@@ -10,6 +10,7 @@
 #include "Phase0/Components/BSNoiseEmitterComponent.h"
 #include "Phase0/Components/BSTaskComponent.h"
 #include "Phase0/Data/BSTaskDefinition.h"
+#include "Phase0/Framework/BSPhase0PlayerController.h"
 #include "Phase0/BlackStaticPhase0Statics.h"
 #include "UObject/ConstructorHelpers.h"
 
@@ -62,9 +63,12 @@ void ABSWaterPowerObjectiveActor::Interact_Implementation(AActor* Interactor)
 
 	if (!InventoryComponent->HasRequiredItems(TaskDefinition->RequiredItems))
 	{
-		if (GEngine)
+		if (ABSPhase0PlayerController* Phase0Controller = Character->GetController<ABSPhase0PlayerController>())
 		{
-			GEngine->AddOnScreenDebugMessage(-1, 2.5f, FColor::Orange, TEXT("Missing restoration parts. Find the battery and filter before installing."));
+			Phase0Controller->ShowPhase0Message(
+				NSLOCTEXT("BlackStatic", "ObjectiveMissingParts", "Missing restoration parts. Find the battery and filter before trying to bring the site online."),
+				FLinearColor(0.94f, 0.62f, 0.16f),
+				4.0f);
 		}
 		return;
 	}
@@ -77,9 +81,12 @@ void ABSWaterPowerObjectiveActor::Interact_Implementation(AActor* Interactor)
 		NoiseEmitterComponent->EmitNoise(EBSNoiseType::Objective, 1.1f, TEXT("RestoreUtilities"));
 	}
 
-	if (GEngine)
+	if (ABSPhase0PlayerController* Phase0Controller = Character->GetController<ABSPhase0PlayerController>())
 	{
-		GEngine->AddOnScreenDebugMessage(-1, 3.0f, FColor::Green, TEXT("Water and power restored. Return to settlement to extract the mission."));
+		Phase0Controller->ShowPhase0Message(
+			NSLOCTEXT("BlackStatic", "ObjectiveCompleted", "Water and power restored. The noise has stirred infected. Return to settlement and extract."),
+			FLinearColor(0.24f, 0.82f, 0.42f),
+			5.0f);
 	}
 }
 
